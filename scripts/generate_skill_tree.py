@@ -318,7 +318,7 @@ class AdvancedProfileAnalyzer:
 
         return self._process_skills(contribution_stats)
 
-    def _analyze_repo(self, repo: Dict):
+    def _analyze_repo(self, repo: Dict, contrib_stats: Dict):
         name = repo['name']
         if repo.get('size', 0) < 10: return # Skip empty repos
 
@@ -355,7 +355,7 @@ class AdvancedProfileAnalyzer:
             if any(kw in text for kw in keywords):
                 self.skills[lang]['frameworks'][framework] += 1
 
-    def _process_skills(self) -> List[Dict]:
+    def _process_skills(self, contrib_stats: Dict) -> List[Dict]:
         """Harsh, Absolute Grading System"""
         processed = []
         total_bytes_all = sum(s['bytes'] for s in self.skills.values()) or 1
@@ -455,11 +455,10 @@ class ContributionHeatmapGenerator:
             weeks.append(week_data[::-1])
         weeks = weeks[::-1]
 
-        # FIX: Escape & to &amp; in Google Fonts URL
+        # REPLACED Google Fonts with system stack
         svg = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.width} {self.height}" width="{self.width}" height="{self.height}">']
         svg.append('<defs><style>')
-        svg.append('@import url("https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600&amp;display=swap");')
-        svg.append('.txt { font-family: "Segoe UI", sans-serif; fill: #e6edf3; font-size: 12px; }')
+        svg.append('.txt { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: #e6edf3; font-size: 12px; }')
         svg.append('.title { font-size: 16px; font-weight: 600; }')
         svg.append('</style></defs>')
         svg.append('<rect width="100%" height="100%" fill="#0d1117" rx="10"/>')
@@ -511,12 +510,11 @@ class SkillTreeGenerator:
         """Generate skill tree SVG"""
         logger.info("🎨 Generating skill tree visualization")
         
-        # FIX: Escape & to &amp; in Google Fonts URL
+        # REPLACED Google Fonts with system stack
         return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.width} {self.height}" width="{self.width}" height="{self.height}">
     <defs>
         <style>
-            @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&amp;display=swap');
-            .txt {{ font-family: 'JetBrains Mono', monospace; fill: #e6edf3; }}
+            .txt {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: #e6edf3; }}
             .title {{ font-size: 32px; font-weight: 700; letter-spacing: 2px; }}
             .subtitle {{ font-size: 13px; fill: #8b949e; }}
             .lang {{ font-size: 17px; font-weight: 600; }}
@@ -610,11 +608,10 @@ class LanguageDonutGenerator:
         total_bytes = sum(s['bytes'] for s in self.skills)
         if total_bytes == 0: return self._empty_state()
 
-        # FIX: Escape & to &amp; in Google Fonts URL
+        # REPLACED Google Fonts with system stack
         svg = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.width} {self.height}" width="{self.width}" height="{self.height}">']
         svg.append('<defs><style>')
-        svg.append('@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&amp;display=swap");')
-        svg.append('.txt { font-family: "JetBrains Mono", monospace; fill: #e6edf3; }')
+        svg.append('.txt { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: #e6edf3; }')
         svg.append('.title { font-size: 18px; font-weight: 600; }')
         svg.append('.label { font-size: 13px; font-weight: 500; }')
         svg.append('.percent { font-size: 12px; fill: #8b949e; }')
@@ -682,12 +679,11 @@ class StatsCardGenerator:
         followers = self.user_info.get('followers', 0)
         following = self.user_info.get('following', 0)
         
-        # FIX: Escape & to &amp; in Google Fonts URL
-        return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.width} {self.height}">
+        # FIX: Added width/height and REPLACED Google Fonts with system stack
+        return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.width} {self.height}" width="{self.width}" height="{self.height}">
     <defs>
         <style>
-            @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&amp;display=swap');
-            .txt {{ font-family: 'JetBrains Mono', monospace; fill: #e6edf3; }}
+            .txt {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: #e6edf3; }}
             .title {{ font-size: 16px; font-weight: 600; }}
             .stat-value {{ font-size: 28px; font-weight: 700; fill: #f92672; }}
             .stat-label {{ font-size: 12px; fill: #8b949e; }}
