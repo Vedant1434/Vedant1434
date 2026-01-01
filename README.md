@@ -83,22 +83,14 @@ The skill matrix above analyzes:
 ### Core Languages
 ![Python](https://img.shields.io/badge/Python-3572A5?style=for-the-badge&logo=python&logoColor=white)
 ![Java](https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
-![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
 
 ### Frameworks & Tools
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-6DB33F?style=for-the-badge&logo=spring-boot&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
-![Django](https://img.shields.io/badge/Django-092E20?style=for-the-badge&logo=django&logoColor=white)
-![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
-![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
 
-### Databases & Cloud
+### Databases
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
-![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
-![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-![AWS](https://img.shields.io/badge/AWS-232F3E?style=for-the-badge&logo=amazon-aws&logoColor=white)
+
 
 ### Development Tools
 ![Git](https://img.shields.io/badge/Git-F05032?style=for-the-badge&logo=git&logoColor=white)
@@ -130,28 +122,81 @@ The skill matrix above analyzes:
 ## 🎯 Current Focus
 
 ```mermaid
-mindmap
-  root((Vedant Singh))
-    Backend Engineering
-      Microservices Architecture
-      RESTful API Design
-      Database Optimization
-      Caching Strategies
-    System Design
-      Scalability Patterns
-      Load Balancing
-      Message Queues
-      Distributed Systems
-    DevOps
-      CI/CD Pipelines
-      Docker Containers
-      Kubernetes
-      Monitoring & Logging
-    Learning
-      Cloud Native Apps
-      gRPC
-      Event-Driven Architecture
-      Performance Tuning
+%%{init: {
+  "theme": "dark",
+  "themeVariables": {
+    "fontSize": "8px",
+    "nodePadding": "1"
+  }
+}}%%
+
+graph LR
+    A((Vedant Singh))
+
+    %% Main categories
+    A --- L[Languages]
+    A --- B[Backend]
+    A --- F[Frontend]
+    A --- D[Databases]
+    A --- T[Tools]
+    A --- O[Other]
+
+    %% Languages
+    L --- L1[Java]
+    L --- L2[Python]
+    L --- L3[C]
+    L --- L4[SQL]
+
+    %% Backend
+    B --- B1[Spring Boot]
+    B --- B2[Flask]
+    B --- B3[JDBC]
+    B --- B4[Hibernate]
+    B --- B5[REST APIs]
+
+    %% Spring sub-tree
+    B1 --- S1[Spring Core]
+    B1 --- S2[Spring Security]
+    S2 --- S3[JWT]
+
+    %% Frontend
+    F --- F1[HTML]
+    F --- F2[CSS]
+
+    %% Databases
+    D --- D1[PostgreSQL]
+    D --- D2[SQLite]
+
+    %% Tools
+    T --- T1[Git]
+    T --- T2[GitHub]
+    T --- T3[Postman]
+    T --- T4[IntelliJ]
+    T --- T5[VS Code]
+
+    %% Other skills
+    O --- O1[Web Scraping]
+    O --- O2[API Integration]
+    O --- O3[Multithreading]
+    O --- O4[JUnit 5]
+
+    %% Styling
+    classDef center fill:#000,color:#fff,stroke:#22c55e,stroke-width:2px;
+    classDef lang fill:#022c22,color:#34d399;
+    classDef back fill:#0f172a,color:#60a5fa;
+    classDef front fill:#1f2933,color:#fbbf24;
+    classDef db fill:#2e1065,color:#c084fc;
+    classDef tool fill:#3f1d0b,color:#facc15;
+    classDef other fill:#111827,color:#93c5fd;
+
+    class A center;
+    class L,L1,L2,L3,L4 lang;
+    class B,B1,B2,B3,B4,B5,S1,S2,S3 back;
+    class F,F1,F2 front;
+    class D,D1,D2 db;
+    class T,T1,T2,T3,T4,T5 tool;
+    class O,O1,O2,O3,O4 other;
+
 ```
 
 ---
