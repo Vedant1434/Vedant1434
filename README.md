@@ -40,7 +40,7 @@ public class VedantSingh {
     }
 }
 ---
-
+```
 ## 🎮 Dynamic Skill Matrix
 
 > **Real-time analytics** automatically generated from my GitHub activity. Updated daily via GitHub Actions.
