@@ -6,12 +6,12 @@
             .stat-value { font-size: 28px; font-weight: 700; fill: #f92672; }
             .stat-label { font-size: 12px; fill: #8b949e; }
         </style>
-        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stop-color="#0d1117"/>
             <stop offset="100%" stop-color="#161b22"/>
         </linearGradient>
     </defs>
-    <rect width="100%" height="100%" fill="url(#bg)" rx="12" stroke="#30363d"/>
+    <rect width="100%" height="100%" fill="url(#bg)" rx="12" stroke="#30363d" stroke-width="2"/>
     <text x="24" y="32" class="txt title">CONTRIBUTION STATS</text>
     <line x1="24" y1="45" x2="456" y2="45" stroke="#30363d" stroke-width="1"/>
     <g transform="translate(40, 80)">
