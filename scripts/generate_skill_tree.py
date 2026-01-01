@@ -31,36 +31,28 @@ class GitHubAPI:
         self.cache = {}
         self.rate_limit_remaining = 5000
         self.rate_limit_reset = 0
-        self.request_delay = 0.1  # Small delay between requests
+        self.request_delay = 0.1
 
     def _check_rate_limit(self) -> bool:
-        """Check if we can make a request based on rate limits"""
         current_time = time.time()
-        
-        # If we've hit reset time, refresh limits
         if current_time >= self.rate_limit_reset:
-            self.rate_limit_remaining = 5000  # Conservative estimate
+            self.rate_limit_remaining = 5000
         
-        # If we're low on requests, wait
         if self.rate_limit_remaining < 10:
             wait_time = max(self.rate_limit_reset - current_time, 0) + 1
             if wait_time > 0:
-                logger.warning(f"  ⚠ Rate limit low ({self.rate_limit_remaining} remaining), waiting {wait_time:.0f}s")
-                time.sleep(min(wait_time, 300))  # Max 5 minutes
+                logger.warning(f"  ⚠ Rate limit low ({self.rate_limit_remaining}), waiting {wait_time:.0f}s")
+                time.sleep(min(wait_time, 300))
                 self.rate_limit_remaining = 5000
             return True
         return True
     
     def _request(self, endpoint: str, params: Optional[Dict] = None, retry_count: int = 3) -> Any:
-        """Smart request handler with exponential backoff and rate limit checking"""
         cache_key = f"{endpoint}:{json.dumps(params or {})}"
         if cache_key in self.cache:
             return self.cache[cache_key], None
 
-        # Check rate limits before making request
         self._check_rate_limit()
-        
-        # Add small delay to avoid hitting rate limits
         time.sleep(self.request_delay)
 
         url = f"{self.BASE_URL}/{endpoint}" if not endpoint.startswith('http') else endpoint
@@ -71,13 +63,10 @@ class GitHubAPI:
             try:
                 req = Request(url, headers=self.headers)
                 with urlopen(req, timeout=30) as response:
-                    # Update rate limit info from headers
                     remaining = response.headers.get('X-RateLimit-Remaining')
                     reset = response.headers.get('X-RateLimit-Reset')
-                    if remaining:
-                        self.rate_limit_remaining = int(remaining)
-                    if reset:
-                        self.rate_limit_reset = int(reset)
+                    if remaining: self.rate_limit_remaining = int(remaining)
+                    if reset: self.rate_limit_reset = int(reset)
                     
                     try:
                         data = json.loads(response.read().decode())
@@ -88,45 +77,32 @@ class GitHubAPI:
                     return data, response.headers
             except HTTPError as e:
                 if e.code == 403:
-                    # Check if it's a rate limit error
                     reset_time = int(e.headers.get('X-RateLimit-Reset', time.time() + 3600))
-                    remaining = int(e.headers.get('X-RateLimit-Remaining', 0))
-                    self.rate_limit_remaining = remaining
+                    self.rate_limit_remaining = int(e.headers.get('X-RateLimit-Remaining', 0))
                     self.rate_limit_reset = reset_time
-                    
-                    sleep_time = max(reset_time - time.time(), 1) + 1
-                    logger.warning(f"  ⚠ Rate limit hit - {remaining} remaining, waiting {sleep_time:.0f}s")
-                    time.sleep(min(sleep_time, 300))  # Max 5 minutes wait
+                    time.sleep(min(max(reset_time - time.time(), 1) + 1, 300))
                     continue
                 elif e.code == 404:
                     return None, None
-                elif e.code == 429:  # Too Many Requests
+                elif e.code == 429:
                     retry_after = int(e.headers.get('Retry-After', 60))
-                    logger.warning(f"  ⚠ 429 Too Many Requests - waiting {retry_after}s")
                     time.sleep(min(retry_after, 300))
                     continue
-                logger.error(f"  ✗ HTTP {e.code}: {e.reason}")
-                if attempt == retry_count - 1:
-                    return None, None
+                if attempt == retry_count - 1: return None, None
             except URLError as e:
-                logger.error(f"  ✗ Network error: {e.reason}")
-                if attempt < retry_count - 1:
-                    time.sleep(2 ** attempt)
-                else:
-                    return None, None
+                if attempt < retry_count - 1: time.sleep(2 ** attempt)
+                else: return None, None
         return None, None
 
     def get_user_info(self, username: str = None) -> Dict:
-        """Fetch user info. If username provided, fetches specific user, else authenticated user."""
         endpoint = f"users/{username}" if username else "user"
         data, _ = self._request(endpoint)
         return data or {}
 
-    def get_all_repos(self, username: str, limit: int = 30) -> List[Dict]:
-        """Fetch non-fork repositories with pagination (limited to reduce API calls)"""
+    def get_all_repos(self, username: str, limit: int = 50) -> List[Dict]:
         repos = []
         page = 1
-        max_pages = 3  # Limit to 3 pages max (300 repos)
+        max_pages = 5
         
         while len(repos) < limit and page <= max_pages:
             data, _ = self._request(f"users/{username}/repos", {
@@ -136,208 +112,92 @@ class GitHubAPI:
                 'sort': 'updated',
                 'direction': 'desc'
             })
-            if not data:
-                break
+            if not data: break
             repos.extend([r for r in data if not r.get('fork', False)])
-            if len(data) < 100:
-                break
+            if len(data) < 100: break
             page += 1
-        
-        # Return only the most recently updated repos
         return repos[:limit]
 
     def get_repo_languages(self, owner: str, repo: str) -> Dict[str, int]:
-        """Fetch language statistics"""
         data, _ = self._request(f"repos/{owner}/{repo}/languages")
         return data or {}
 
-    def get_repo_contents(self, owner: str, repo: str, path: str = "") -> List[Dict]:
-        """Fetch repository contents"""
-        data, _ = self._request(f"repos/{owner}/{repo}/contents/{path}")
-        return data if isinstance(data, list) else []
-
-    def get_commits(self, owner: str, repo: str, since: str = None) -> List[Dict]:
-        """Fetch recent commits"""
-        params = {'per_page': 100}
-        if since:
-            params['since'] = since
-        data, _ = self._request(f"repos/{owner}/{repo}/commits", params)
-        return data or []
+    def get_contribution_stats(self, username: str) -> Dict[str, int]:
+        stats = {'commits': 0, 'prs': 0, 'issues': 0, 'reviews': 0}
+        try:
+            d, _ = self._request("search/issues", {'q': f'author:{username} type:pr is:merged', 'per_page': 1})
+            if d: stats['prs'] = min(d.get('total_count', 0), 5000)
+            
+            d, _ = self._request("search/issues", {'q': f'author:{username} type:issue', 'per_page': 1})
+            if d: stats['issues'] = min(d.get('total_count', 0), 5000)
+        except: pass
+        
+        repos = self.get_all_repos(username, limit=10)
+        stats['commits'] = len(repos) * 50
+        return stats
 
     def get_user_events(self, username: str, limit: int = 100) -> List[Dict]:
-        """Fetch user activity events (limited to reduce API calls)"""
         data, _ = self._request(f"users/{username}/events/public", {'per_page': min(limit, 100)})
         return (data or [])[:limit]
 
-    def get_contribution_stats(self, username: str) -> Dict[str, int]:
-        """Fetch contribution statistics with reduced API calls"""
-        stats = {'commits': 0, 'prs': 0, 'issues': 0, 'reviews': 0, 'stars_given': 0}
-        
-        # Only fetch PRs and Issues (skip reviews to save API calls)
-        try:
-            # PRs
-            d, _ = self._request("search/issues", {'q': f'author:{username} type:pr is:merged', 'per_page': 1})
-            if d:
-                stats['prs'] = min(d.get('total_count', 0), 5000)
-            
-            # Issues
-            d, _ = self._request("search/issues", {'q': f'author:{username} type:issue', 'per_page': 1})
-            if d:
-                stats['issues'] = min(d.get('total_count', 0), 5000)
-        except Exception as e:
-            logger.warning(f"  ⚠ Could not fetch contribution stats: {e}")
-        
-        # Estimate commits from repo count
-        repos = self.get_all_repos(username, limit=10)
-        stats['commits'] = len(repos) * 50  # Rough estimate
-        
-        return stats
-
 
 class AdvancedProfileAnalyzer:
-    """Deep profile analysis with tech stack detection"""
-
     TECH_DETECTION = {
-        'Python': {
-            'files': ['requirements.txt', 'setup.py', 'pyproject.toml', 'pipfile', 'poetry.lock', 'conda.yml'],
-            'frameworks': {
-                'Django': ['django', 'manage.py', 'wsgi.py', 'settings.py'],
-                'Flask': ['flask', 'app.py', 'application.py'],
-                'FastAPI': ['fastapi', 'main.py', 'api'],
-                'Pandas': ['pandas', 'dataframe', 'pd.'],
-                'PyTorch': ['torch', 'pytorch', 'nn.module'],
-                'TensorFlow': ['tensorflow', 'tf.', 'keras'],
-                'Streamlit': ['streamlit', 'st.'],
-                'Scrapy': ['scrapy', 'spider'],
-            }
-        },
-        'JavaScript': {
-            'files': ['package.json', 'package-lock.json', 'yarn.lock'],
-            'frameworks': {
-                'React': ['react', 'jsx', 'tsx', 'create-react-app'],
-                'Vue': ['vue', 'nuxt'],
-                'Angular': ['angular', '@angular'],
-                'Next.js': ['next', 'next.config'],
-                'Express': ['express', 'app.listen'],
-                'Node.js': ['node', 'npm', 'server.js'],
-            }
-        },
-        'TypeScript': {
-            'files': ['tsconfig.json', 'package.json'],
-            'frameworks': {
-                'React': ['react', 'tsx'],
-                'Angular': ['angular.json'],
-                'NestJS': ['nest', '@nestjs'],
-                'Vue': ['vue', 'composition-api'],
-            }
-        },
-        'Java': {
-            'files': ['pom.xml', 'build.gradle', 'settings.gradle', 'mvnw'],
-            'frameworks': {
-                'Spring Boot': ['spring-boot', '@springbootapplication'],
-                'Maven': ['pom.xml', 'maven'],
-                'Gradle': ['build.gradle', 'gradle'],
-                'Hibernate': ['hibernate', 'jpa'],
-                'Android': ['android', 'androidmanifest'],
-            }
-        },
-        'Go': {
-            'files': ['go.mod', 'go.sum'],
-            'frameworks': {
-                'Gin': ['gin-gonic', 'gin'],
-                'Echo': ['echo', 'labstack'],
-                'Fiber': ['fiber', 'gofiber'],
-            }
-        },
-        'Rust': {
-            'files': ['cargo.toml', 'cargo.lock'],
-            'frameworks': {
-                'Actix': ['actix-web'],
-                'Rocket': ['rocket'],
-                'Tokio': ['tokio'],
-            }
-        },
-        'PHP': {
-            'files': ['composer.json', 'composer.lock'],
-            'frameworks': {
-                'Laravel': ['laravel', 'artisan'],
-                'Symfony': ['symfony'],
-                'WordPress': ['wordpress', 'wp-'],
-            }
-        },
-        'C#': {
-            'files': ['.csproj', '.sln'],
-            'frameworks': {
-                '.NET': ['dotnet', 'netcore'],
-                'ASP.NET': ['asp.net', 'mvc'],
-                'Unity': ['unity', 'monobehaviour'],
-            }
-        },
-        'Ruby': {
-            'files': ['gemfile', 'gemfile.lock'],
-            'frameworks': {
-                'Rails': ['rails', 'activerecord'],
-                'Sinatra': ['sinatra'],
-            }
-        }
+        'Python': {'files': [], 'frameworks': {'Django': ['django'], 'Flask': ['flask'], 'FastAPI': ['fastapi'], 'Pandas': ['pandas'], 'PyTorch': ['torch'], 'TensorFlow': ['tensorflow'], 'Streamlit': ['streamlit']}},
+        'JavaScript': {'files': [], 'frameworks': {'React': ['react'], 'Vue': ['vue'], 'Angular': ['angular'], 'Next.js': ['next'], 'Express': ['express'], 'Node.js': ['node']}},
+        'TypeScript': {'files': [], 'frameworks': {'React': ['react'], 'Angular': ['angular'], 'NestJS': ['nest'], 'Vue': ['vue']}},
+        'Java': {'files': [], 'frameworks': {'Spring Boot': ['spring-boot'], 'Hibernate': ['hibernate'], 'Android': ['android']}},
+        'Go': {'files': [], 'frameworks': {'Gin': ['gin'], 'Echo': ['echo']}},
+        'Rust': {'files': [], 'frameworks': {'Actix': ['actix'], 'Rocket': ['rocket']}},
+        'PHP': {'files': [], 'frameworks': {'Laravel': ['laravel'], 'Symfony': ['symfony']}},
+        'C#': {'files': [], 'frameworks': {'.NET': ['dotnet'], 'Unity': ['unity']}},
     }
 
     LANGUAGE_COLORS = {
-        'Python': '#3572A5', 'Java': '#b07219', 'JavaScript': '#f1e05a',
-        'TypeScript': '#2b7489', 'C++': '#f34b7d', 'HTML': '#e34c26',
-        'CSS': '#563d7c', 'C#': '#178600', 'Go': '#00ADD8',
-        'Rust': '#dea584', 'PHP': '#4F5D95', 'Ruby': '#701516',
-        'Swift': '#ffac45', 'Kotlin': '#A97BFF', 'Dart': '#00B4AB',
-        'Shell': '#89e051', 'Dockerfile': '#384d54'
+        'Python': '#3572A5', 'Java': '#b07219', 'JavaScript': '#f1e05a', 'TypeScript': '#2b7489',
+        'C++': '#f34b7d', 'HTML': '#e34c26', 'CSS': '#563d7c', 'C#': '#178600', 'Go': '#00ADD8',
+        'Rust': '#dea584', 'PHP': '#4F5D95', 'Ruby': '#701516', 'Swift': '#ffac45', 'Kotlin': '#A97BFF'
     }
 
     def __init__(self, api: GitHubAPI, username: str):
         self.api = api
         self.username = username
         self.skills = defaultdict(lambda: {
-            'bytes': 0,
-            'repos': 0,
-            'commits': 0,
-            'score': 0,
-            'frameworks': defaultdict(int),
-            'top_repo': ('', 0),
-            'recent_activity': 0
+            'bytes': 0, 
+            'repos': 0, 
+            'recency_sum': 0,  # Fixed: Match the key used in logic
+            'frameworks': defaultdict(int), 
+            'top_repo': ('', 0)
         })
 
     def analyze(self) -> List[Dict]:
-        """Comprehensive profile analysis"""
         logger.info(f"🚀 Analyzing profile: {self.username}")
-        repos = self.api.get_all_repos(self.username, limit=30)
+        repos = self.api.get_all_repos(self.username, limit=40)
         logger.info(f"📂 Processing {len(repos)} repositories")
-        contribution_stats = self.api.get_contribution_stats(self.username)
         
-        for idx, repo in enumerate(repos):
-            if idx % 10 == 0:
-                logger.info(f"  Progress: {idx}/{len(repos)}")
-            self._analyze_repo(repo, contribution_stats)
+        for repo in repos:
+            self._analyze_repo(repo)
 
-        return self._process_skills(contribution_stats)
+        return self._process_skills()
 
-    def _analyze_repo(self, repo: Dict, contrib_stats: Dict):
+    def _analyze_repo(self, repo: Dict):
         name = repo['name']
-        if repo.get('size', 0) < 10: return # Skip empty repos
+        if repo.get('size', 0) < 10: return
 
         langs = self.api.get_repo_languages(self.username, name)
         repo_text = (repo.get('description', '') or '').lower() + ' ' + name.lower()
 
-        # Recency calculation (0.0 to 1.0)
         pushed_at = repo.get('pushed_at')
-        recency = 0.2 # Base value for old repos
+        recency = 0.2
         if pushed_at:
             try:
                 date = datetime.strptime(pushed_at[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
                 days_old = (datetime.now(timezone.utc) - date).days
-                # Decays to 0.2 over 2 years (730 days)
                 recency = max(0.2, 1.0 - (days_old / 730))
             except: pass
 
         for lang, byte_count in langs.items():
-            if byte_count < 500: continue # Ignore noise
+            if byte_count < 500: continue
             
             self.skills[lang]['bytes'] += byte_count
             self.skills[lang]['repos'] += 1
@@ -355,57 +215,25 @@ class AdvancedProfileAnalyzer:
             if any(kw in text for kw in keywords):
                 self.skills[lang]['frameworks'][framework] += 1
 
-    def _process_skills(self, contrib_stats: Dict) -> List[Dict]:
-        """Harsh, Absolute Grading System"""
+    def _process_skills(self) -> List[Dict]:
         processed = []
         total_bytes_all = sum(s['bytes'] for s in self.skills.values()) or 1
         
         for lang, data in self.skills.items():
-            if data['bytes'] < 2000: continue # Skip trivial languages
+            if data['bytes'] < 2000: continue
 
-            # 1. VOLUME XP (0-40 Points)
-            # Logarithmic scale. 
-            # 2KB = 0pts, 10KB = 10pts, 100KB = 25pts, 1MB+ = 40pts
-            # math.log10(1000000) = 6. 
             bytes_log = math.log10(data['bytes'])
             volume_xp = max(0, min(40, (bytes_log - 3.3) * 15))
-
-            # 2. RECENCY XP (0-30 Points)
-            # Average recency across repos using this language
             avg_recency = data['recency_sum'] / max(1, data['repos'])
             recency_xp = avg_recency * 30
-
-            # 3. BREADTH XP (0-20 Points)
-            # Rewards using language in multiple repos. 1 repo = 4pts, 5 repos = 20pts
             breadth_xp = min(20, data['repos'] * 4)
+            dominance_xp = (data['bytes'] / total_bytes_all) * 10
 
-            # 4. DOMINANCE XP (0-10 Points)
-            # Bonus if this is a primary language
-            dominance_ratio = data['bytes'] / total_bytes_all
-            dominance_xp = dominance_ratio * 10
+            level = int((volume_xp + recency_xp + breadth_xp + dominance_xp) / 10)
 
-            # Calculate Raw Level (1-10)
-            total_xp = volume_xp + recency_xp + breadth_xp + dominance_xp
-            level = int(total_xp / 10)
-
-            # --- HARSH PENALTIES & CAPS ---
-            
-            # Penalty 1: One-Hit Wonder
-            # If you only have 1 repo, you cannot be an expert (Max Level 6)
-            if data['repos'] == 1:
-                level = min(level, 6)
-
-            # Penalty 2: Script Kiddie
-            # If total code is small (< 15KB), you are a beginner (Max Level 3)
-            if data['bytes'] < 15000:
-                level = min(level, 3)
-
-            # Penalty 3: The "Hello World"
-            # If total code is tiny (< 5KB), Max Level 1
-            if data['bytes'] < 5000:
-                level = 1
-
-            # Ensure bounds
+            if data['repos'] == 1: level = min(level, 6)
+            if data['bytes'] < 15000: level = min(level, 3)
+            if data['bytes'] < 5000: level = 1
             level = max(1, min(10, level))
 
             top_frameworks = sorted(data['frameworks'].items(), key=lambda x: x[1], reverse=True)[:3]
@@ -422,95 +250,15 @@ class AdvancedProfileAnalyzer:
 
         return sorted(processed, key=lambda x: (x['level'], x['bytes']), reverse=True)[:10]
 
-class ContributionHeatmapGenerator:
-    """Generates a GitHub-style contribution heatmap"""
-    
-    def __init__(self, api: GitHubAPI, username: str):
-        self.api = api
-        self.username = username
-        self.width = 900
-        self.height = 180
-
-    def generate(self) -> str:
-        """Create contribution heatmap SVG"""
-        logger.info("📊 Generating contribution heatmap")
-        events = self.api.get_user_events(self.username, limit=100)
-        
-        activity_map = defaultdict(int)
-        for event in events:
-            try:
-                date = datetime.strptime(event['created_at'][:10], "%Y-%m-%d").date()
-                activity_map[date] += 1
-            except: continue
-
-        today = datetime.now().date()
-        weeks = []
-        for week in range(52):
-            week_start = today - timedelta(days=today.weekday() + week * 7)
-            week_data = []
-            for day in range(7):
-                date = week_start - timedelta(days=day)
-                count = activity_map.get(date, 0)
-                week_data.append((date, count))
-            weeks.append(week_data[::-1])
-        weeks = weeks[::-1]
-
-        # REPLACED Google Fonts with system stack
-        svg = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.width} {self.height}" width="{self.width}" height="{self.height}">']
-        svg.append('<defs><style>')
-        svg.append('.txt { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: #e6edf3; font-size: 12px; }')
-        svg.append('.title { font-size: 16px; font-weight: 600; }')
-        svg.append('</style></defs>')
-        svg.append('<rect width="100%" height="100%" fill="#0d1117" rx="10"/>')
-        svg.append('<rect width="100%" height="100%" fill="none" stroke="#30363d" stroke-width="2" rx="10"/>')
-        svg.append('<text x="20" y="30" class="txt title">CONTRIBUTION ACTIVITY</text>')
-
-        x_start, y_start = 20, 50
-        cell_size = 12
-        gap = 3
-        max_count = max([max([d[1] for d in week]) for week in weeks]) or 1
-
-        for week_idx, week in enumerate(weeks):
-            for day_idx, (date, count) in enumerate(week):
-                x = x_start + week_idx * (cell_size + gap)
-                y = y_start + day_idx * (cell_size + gap)
-                if count == 0: color = '#161b22'
-                else:
-                    intensity = min(count / max_count, 1.0)
-                    if intensity < 0.25: color = '#0e4429'
-                    elif intensity < 0.5: color = '#006d32'
-                    elif intensity < 0.75: color = '#26a641'
-                    else: color = '#39d353'
-                
-                svg.append(f'<rect x="{x}" y="{y}" width="{cell_size}" height="{cell_size}" fill="{color}" rx="2">')
-                svg.append(f'<title>{date}: {count} contributions</title>')
-                svg.append('</rect>')
-
-        legend_y = y_start + 8 * (cell_size + gap) + 10
-        svg.append(f'<text x="{x_start}" y="{legend_y}" class="txt" fill="#8b949e">Less</text>')
-        colors = ['#161b22', '#0e4429', '#006d32', '#26a641', '#39d353']
-        for i, color in enumerate(colors):
-            x = x_start + 45 + i * (cell_size + gap)
-            svg.append(f'<rect x="{x}" y="{legend_y - 10}" width="{cell_size}" height="{cell_size}" fill="{color}" rx="2"/>')
-        svg.append(f'<text x="{x_start + 45 + len(colors) * (cell_size + gap) + 5}" y="{legend_y}" class="txt" fill="#8b949e">More</text>')
-        svg.append('</svg>')
-        return ''.join(svg)
-
 
 class SkillTreeGenerator:
-    """Modern skill tree with enhanced visuals"""
-    
     def __init__(self, skills: List[Dict], contrib_stats: Dict):
         self.skills = skills
-        self.contrib_stats = contrib_stats
+        self.stats = contrib_stats
         self.width = 900
         self.height = 200 + len(skills) * 95
 
     def generate(self) -> str:
-        """Generate skill tree SVG"""
-        logger.info("🎨 Generating skill tree visualization")
-        
-        # REPLACED Google Fonts with system stack
         return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.width} {self.height}" width="{self.width}" height="{self.height}">
     <defs>
         <style>
@@ -519,14 +267,8 @@ class SkillTreeGenerator:
             .subtitle {{ font-size: 13px; fill: #8b949e; }}
             .lang {{ font-size: 17px; font-weight: 600; }}
             .stat {{ font-size: 12px; fill: #8b949e; }}
-            .framework {{ font-size: 11px; fill: #79c0ff; }}
             .bar-bg {{ fill: #161b22; stroke: #30363d; stroke-width: 1; rx: 5; }}
             .glow {{ filter: drop-shadow(0 0 8px rgba(249, 38, 114, 0.6)); }}
-            .pulse {{ animation: pulse 2s ease-in-out infinite; }}
-            @keyframes pulse {{
-                0%, 100% {{ opacity: 1; }}
-                50% {{ opacity: 0.6; }}
-            }}
         </style>
         <linearGradient id="bg-grad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stop-color="#0d1117"/>
@@ -544,11 +286,7 @@ class SkillTreeGenerator:
     <g transform="translate(40, 50)">
         <text x="0" y="0" class="txt title" fill="url(#accent)">◈ SKILL MATRIX</text>
         <text x="0" y="28" class="txt subtitle">Real-time GitHub Analytics • {datetime.now().strftime('%B %Y')}</text>
-        <text x="0" y="50" class="txt subtitle">
-            {self.contrib_stats.get('prs', 0)} Pull Requests • 
-            {self.contrib_stats.get('commits', 0)} Commits • 
-            {self.contrib_stats.get('reviews', 0)} Reviews
-        </text>
+        <text x="0" y="50" class="txt subtitle">{self.stats.get('commits', 0)} Commits • {self.stats.get('prs', 0)} PRs</text>
         <line x1="0" y1="70" x2="{self.width - 80}" y2="70" stroke="#30363d" stroke-width="2"/>
     </g>
     
@@ -556,130 +294,38 @@ class SkillTreeGenerator:
 </svg>'''
 
     def _render_skills(self) -> str:
-        """Render skill nodes"""
         nodes = []
-        y_offset = 150
-        
-        for idx, skill in enumerate(self.skills):
-            level = skill['level']
-            bar_width = (level / 10) * 350
-            
-            frameworks = ' • '.join(skill['frameworks'][:3]) if skill['frameworks'] else 'Core'
-            repo_info = f"Top: {skill['top_repo']}" if skill['top_repo'] else f"{skill['repos']} repos"
-            
-            if level >= 8: tier, tier_color = "⭐ EXPERT", "#f92672"
-            elif level >= 6: tier, tier_color = "◆ ADVANCED", "#a626a4"
-            elif level >= 4: tier, tier_color = "● INTERMEDIATE", "#61afef"
-            else: tier, tier_color = "○ LEARNING", "#8b949e"
-            
+        y = 150
+        for s in self.skills:
+            lvl = s['level']
+            width = (lvl / 10) * 350
+            if lvl >= 9: tier, clr = "⭐ EXPERT", "#f92672"
+            elif lvl >= 7: tier, clr = "◆ ADVANCED", "#a626a4"
+            elif lvl >= 4: tier, clr = "● COMPETENT", "#61afef"
+            else: tier, clr = "○ NOVICE", "#8b949e"
+            fw = ' • '.join(s['frameworks']) if s['frameworks'] else 'Core'
             nodes.append(f'''
-    <g transform="translate(40, {y_offset})">
-        <circle cx="18" cy="18" r="10" fill="{skill['color']}" class="glow"/>
-        <circle cx="18" cy="18" r="6" fill="{skill['color']}" opacity="0.5" class="pulse"/>
-        <line x1="18" y1="28" x2="18" y2="70" stroke="#30363d" stroke-width="2" stroke-dasharray="3,3"/>
-        
-        <text x="45" y="24" class="txt lang" fill="{skill['color']}">{skill['name']}</text>
-        <text x="{self.width - 180}" y="24" class="txt stat" fill="{tier_color}" text-anchor="end">{tier}</text>
-        <text x="{self.width - 80}" y="24" class="txt stat" text-anchor="end">LVL {level}</text>
-        
-        <rect x="45" y="35" width="350" height="10" class="bar-bg"/>
-        <rect x="45" y="35" width="{bar_width}" height="10" fill="{skill['color']}" rx="5" opacity="0.85">
-            <animate attributeName="width" from="0" to="{bar_width}" dur="1.2s" fill="freeze"/>
-        </rect>
-        
-        <text x="45" y="62" class="txt framework">{frameworks}</text>
-        <text x="{self.width - 80}" y="62" class="txt stat" text-anchor="end">{repo_info}</text>
+    <g transform="translate(40, {y})">
+        <circle cx="18" cy="18" r="8" fill="{s['color']}" class="glow"/>
+        <line x1="18" y1="28" x2="18" y2="70" stroke="#30363d" stroke-dasharray="3,3"/>
+        <text x="45" y="24" class="txt lang" fill="{s['color']}">{s['name']}</text>
+        <text x="820" y="24" class="txt stat" fill="{clr}" text-anchor="end">{tier}</text>
+        <text x="820" y="62" class="txt stat" text-anchor="end">Top: {s['top_repo']}</text>
+        <text x="700" y="24" class="txt stat" text-anchor="end">LVL {lvl}</text>
+        <rect x="45" y="35" width="350" height="8" class="bar-bg"/>
+        <rect x="45" y="35" width="{width}" height="8" fill="{s['color']}" rx="4"/>
+        <text x="45" y="62" class="txt stat" fill="#79c0ff">{fw}</text>
     </g>''')
-            y_offset += 95
+            y += 95
         return '\n'.join(nodes)
 
-
-class LanguageDonutGenerator:
-    """Enhanced donut chart with percentages"""
-    
-    def __init__(self, skills: List[Dict]):
-        self.skills = sorted(skills, key=lambda x: x['bytes'], reverse=True)[:10]
-        self.width = 600
-        self.height = 320
-
-    def generate(self) -> str:
-        """Generate donut chart SVG"""
-        logger.info("📈 Generating language distribution chart")
-        total_bytes = sum(s['bytes'] for s in self.skills)
-        if total_bytes == 0: return self._empty_state()
-
-        # REPLACED Google Fonts with system stack
-        svg = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.width} {self.height}" width="{self.width}" height="{self.height}">']
-        svg.append('<defs><style>')
-        svg.append('.txt { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: #e6edf3; }')
-        svg.append('.title { font-size: 18px; font-weight: 600; }')
-        svg.append('.label { font-size: 13px; font-weight: 500; }')
-        svg.append('.percent { font-size: 12px; fill: #8b949e; }')
-        svg.append('</style>')
-        svg.append('<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">')
-        svg.append('<stop offset="0%" stop-color="#0d1117"/>')
-        svg.append('<stop offset="100%" stop-color="#161b22"/>')
-        svg.append('</linearGradient></defs>')
-        
-        svg.append('<rect width="100%" height="100%" fill="url(#bg)" rx="12"/>')
-        svg.append('<rect width="100%" height="100%" fill="none" stroke="#30363d" stroke-width="2" rx="12"/>')
-        svg.append('<text x="30" y="35" class="txt title">LANGUAGE DISTRIBUTION</text>')
-
-        cx, cy, radius = 160, 180, 85
-        circumference = 2 * math.pi * radius
-        current_offset = 0
-
-        svg.append(f'<g transform="rotate(-90 {cx} {cy})">')
-        for skill in self.skills:
-            percent = skill['bytes'] / total_bytes
-            arc_length = percent * circumference
-            if arc_length < 2: arc_length = 2
-            
-            svg.append(f'<circle r="{radius}" cx="{cx}" cy="{cy}" fill="transparent" stroke="{skill["color"]}" stroke-width="30" stroke-dasharray="{arc_length} {circumference}" stroke-dashoffset="{-current_offset}"/>')
-            current_offset += arc_length
-        svg.append('</g>')
-
-        svg.append(f'<text x="{cx}" y="{cy - 5}" class="txt label" text-anchor="middle" font-size="16px">TOTAL</text>')
-        svg.append(f'<text x="{cx}" y="{cy + 15}" class="txt percent" text-anchor="middle" font-size="14px">{len(self.skills)} langs</text>')
-
-        legend_x, legend_y = 320, 70
-        for skill in self.skills:
-            percent = (skill['bytes'] / total_bytes) * 100
-            svg.append(f'<circle cx="{legend_x}" cy="{legend_y}" r="5" fill="{skill["color"]}"/>')
-            svg.append(f'<text x="{legend_x + 15}" y="{legend_y + 4}" class="txt label">{skill["name"]}</text>')
-            svg.append(f'<text x="{legend_x + 180}" y="{legend_y + 4}" class="txt percent" text-anchor="end">{percent:.1f}%</text>')
-            svg.append(f'<text x="{legend_x + 260}" y="{legend_y + 4}" class="txt percent" text-anchor="end">{skill["repos"]} repos</text>')
-            legend_y += 24
-
-        svg.append('</svg>')
-        return ''.join(svg)
-
-    def _empty_state(self) -> str:
-        return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.width} {self.height}">
-<rect width="100%" height="100%" fill="#0d1117" rx="12"/>
-<text x="50%" y="50%" fill="#8b949e" text-anchor="middle" font-family="monospace" font-size="14px">
-No language data available
-</text>
-</svg>'''
-
-
 class StatsCardGenerator:
-    """Generate comprehensive stats card"""
-    
-    def __init__(self, contrib_stats: Dict, user_info: Dict):
-        self.stats = contrib_stats
-        self.user_info = user_info
+    def __init__(self, stats: Dict, user: Dict):
+        self.stats, self.user = stats, user
         self.width = 480
         self.height = 240
 
     def generate(self) -> str:
-        """Create stats card SVG"""
-        logger.info("📊 Generating stats card")
-        total_repos = self.user_info.get('public_repos', 0)
-        followers = self.user_info.get('followers', 0)
-        following = self.user_info.get('following', 0)
-        
-        # FIX: Added width/height and REPLACED Google Fonts with system stack
         return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.width} {self.height}" width="{self.width}" height="{self.height}">
     <defs>
         <style>
@@ -693,97 +339,157 @@ class StatsCardGenerator:
             <stop offset="100%" stop-color="#161b22"/>
         </linearGradient>
     </defs>
-    
-    <rect width="100%" height="100%" fill="url(#bg)" rx="12"/>
-    <rect width="100%" height="100%" fill="none" stroke="#30363d" stroke-width="2" rx="12"/>
-    
+    <rect width="100%" height="100%" fill="url(#bg)" rx="12" stroke="#30363d"/>
     <text x="24" y="32" class="txt title">CONTRIBUTION STATS</text>
     <line x1="24" y1="45" x2="{self.width - 24}" y2="45" stroke="#30363d" stroke-width="1"/>
-    
     <g transform="translate(40, 80)">
-        <text x="0" y="0" class="txt stat-value">{self.stats.get('commits', 0):,}</text>
-        <text x="0" y="20" class="txt stat-label">Total Commits</text>
+        <text y="0" class="txt stat-value">{self.stats.get('commits', 0):,}</text>
+        <text y="20" class="txt stat-label">Total Commits</text>
     </g>
-    
     <g transform="translate(240, 80)">
-        <text x="0" y="0" class="txt stat-value">{self.stats.get('prs', 0):,}</text>
-        <text x="0" y="20" class="txt stat-label">Pull Requests</text>
+        <text y="0" class="txt stat-value">{self.stats.get('prs', 0):,}</text>
+        <text y="20" class="txt stat-label">Pull Requests</text>
     </g>
-    
     <g transform="translate(40, 140)">
-        <text x="0" y="0" class="txt stat-value">{self.stats.get('issues', 0):,}</text>
-        <text x="0" y="20" class="txt stat-label">Issues Created</text>
+        <text y="0" class="txt stat-value">{self.stats.get('issues', 0):,}</text>
+        <text y="20" class="txt stat-label">Issues Created</text>
     </g>
-    
     <g transform="translate(240, 140)">
-        <text x="0" y="0" class="txt stat-value">{self.stats.get('reviews', 0):,}</text>
-        <text x="0" y="20" class="txt stat-label">Code Reviews</text>
+        <text y="0" class="txt stat-value">{self.stats.get('reviews', 0):,}</text>
+        <text y="20" class="txt stat-label">Code Reviews</text>
     </g>
-    
     <g transform="translate(40, 200)">
-        <text x="0" y="0" class="txt stat-label">📦 {total_repos} Repos  •  👥 {followers} Followers  •  {following} Following</text>
+        <text y="0" class="txt stat-label">📦 {self.user.get('public_repos', 0)} Repos  •  👥 {self.user.get('followers', 0)} Followers</text>
     </g>
 </svg>'''
 
+class LanguageDonutGenerator:
+    def __init__(self, skills: List[Dict]):
+        self.skills = sorted(skills, key=lambda x: x['bytes'], reverse=True)[:6]
+        self.width = 600
+        self.height = 320
+
+    def generate(self) -> str:
+        total = sum(s['bytes'] for s in self.skills)
+        if total == 0: return self._empty()
+        svg = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.width} {self.height}" width="{self.width}" height="{self.height}">']
+        svg.append('''<style>
+            .txt { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: #e6edf3; }
+            .label { font-size: 13px; font-weight: 500; }
+            .percent { font-size: 12px; fill: #8b949e; }
+        </style>''')
+        svg.append('<rect width="100%" height="100%" fill="#0d1117" rx="12" stroke="#30363d"/>')
+        svg.append('<text x="30" y="35" class="txt" font-size="18" font-weight="600">LANGUAGE DISTRIBUTION</text>')
+        cx, cy, r = 160, 180, 85
+        circumference = 2 * math.pi * r
+        offset = 0
+        svg.append(f'<g transform="rotate(-90 {cx} {cy})">')
+        for s in self.skills:
+            pct = s['bytes'] / total
+            dash = max(2, pct * circumference)
+            svg.append(f'<circle r="{r}" cx="{cx}" cy="{cy}" fill="none" stroke="{s["color"]}" stroke-width="30" stroke-dasharray="{dash} {circumference}" stroke-dashoffset="{-offset}"/>')
+            offset += dash
+        svg.append('</g>')
+        lx, ly = 320, 70
+        for s in self.skills:
+            pct = (s['bytes'] / total) * 100
+            svg.append(f'<circle cx="{lx}" cy="{ly}" r="5" fill="{s["color"]}"/>')
+            svg.append(f'<text x="{lx+15}" y="{ly+4}" class="txt label">{s["name"]}</text>')
+            svg.append(f'<text x="{lx+160}" y="{ly+4}" class="txt percent" text-anchor="end">{pct:.1f}%</text>')
+            ly += 30
+        svg.append('</svg>')
+        return ''.join(svg)
+
+    def _empty(self):
+        return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.width} {self.height}" width="{self.width}" height="{self.height}"><rect width="100%" height="100%" fill="#0d1117" rx="12"/><text x="300" y="160" fill="#8b949e" text-anchor="middle" font-family="sans-serif">No data available</text></svg>'
+
+class ContributionHeatmapGenerator:
+    def __init__(self, api: GitHubAPI, username: str):
+        self.api = api
+        self.username = username
+        self.width = 900
+        self.height = 180
+
+    def generate(self) -> str:
+        events = self.api.get_user_events(self.username, limit=100)
+        activity_map = defaultdict(int)
+        for event in events:
+            try:
+                date = datetime.strptime(event['created_at'][:10], "%Y-%m-%d").date()
+                activity_map[date] += 1
+            except: continue
+        today = datetime.now().date()
+        weeks = []
+        for week in range(52):
+            week_start = today - timedelta(days=today.weekday() + week * 7)
+            week_data = []
+            for day in range(7):
+                date = week_start - timedelta(days=day)
+                count = activity_map.get(date, 0)
+                week_data.append((date, count))
+            weeks.append(week_data[::-1])
+        weeks = weeks[::-1]
+        svg = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.width} {self.height}" width="{self.width}" height="{self.height}">']
+        svg.append('<defs><style>')
+        svg.append('.txt { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: #e6edf3; font-size: 12px; }')
+        svg.append('.title { font-size: 16px; font-weight: 600; }')
+        svg.append('</style></defs>')
+        svg.append('<rect width="100%" height="100%" fill="#0d1117" rx="10"/>')
+        svg.append('<rect width="100%" height="100%" fill="none" stroke="#30363d" stroke-width="2" rx="10"/>')
+        svg.append('<text x="20" y="30" class="txt title">CONTRIBUTION ACTIVITY</text>')
+        x_start, y_start = 20, 50
+        cell_size = 12
+        gap = 3
+        max_count = max([max([d[1] for d in week]) for week in weeks]) or 1
+        for week_idx, week in enumerate(weeks):
+            for day_idx, (date, count) in enumerate(week):
+                x = x_start + week_idx * (cell_size + gap)
+                y = y_start + day_idx * (cell_size + gap)
+                if count == 0: color = '#161b22'
+                else:
+                    intensity = min(count / max_count, 1.0)
+                    if intensity < 0.25: color = '#0e4429'
+                    elif intensity < 0.5: color = '#006d32'
+                    elif intensity < 0.75: color = '#26a641'
+                    else: color = '#39d353'
+                svg.append(f'<rect x="{x}" y="{y}" width="{cell_size}" height="{cell_size}" fill="{color}" rx="2"><title>{date}: {count}</title></rect>')
+        legend_y = y_start + 8 * (cell_size + gap) + 10
+        svg.append(f'<text x="{x_start}" y="{legend_y}" class="txt" fill="#8b949e">Less</text>')
+        colors = ['#161b22', '#0e4429', '#006d32', '#26a641', '#39d353']
+        for i, color in enumerate(colors):
+            x = x_start + 45 + i * (cell_size + gap)
+            svg.append(f'<rect x="{x}" y="{legend_y - 10}" width="{cell_size}" height="{cell_size}" fill="{color}" rx="2"/>')
+        svg.append(f'<text x="{x_start + 45 + len(colors) * (cell_size + gap) + 5}" y="{legend_y}" class="txt" fill="#8b949e">More</text>')
+        svg.append('</svg>')
+        return ''.join(svg)
 
 def main():
-    """Main execution"""
     token = os.environ.get('GITHUB_TOKEN')
-    if not token:
-        logger.error("❌ GITHUB_TOKEN environment variable required")
-        return 1
+    if not token: return 1
+    api = GitHubAPI(token)
+    username = os.environ.get('GITHUB_REPOSITORY_OWNER') or api.get_user_info().get('login')
+    if not username: return 1
+    logger.info(f"👤 User: {username}")
+    
+    analyzer = AdvancedProfileAnalyzer(api, username)
+    skills = analyzer.analyze()
+    if not skills: skills = [{'name': 'Analyzing', 'level': 1, 'repos': 0, 'frameworks': [], 'color': '#888888', 'top_repo': '', 'bytes': 100}]
 
-    try:
-        api = GitHubAPI(token)
-        # FIX: Check GITHUB_REPOSITORY_OWNER first to avoid bot user issues
-        username = os.environ.get('GITHUB_REPOSITORY_OWNER')
-        
-        if not username:
-            logger.info("ℹ️  GITHUB_REPOSITORY_OWNER not set, falling back to API user")
-            user_info = api.get_user_info()
-            username = user_info.get('login')
-        else:
-            logger.info(f"ℹ️  Using detected username: {username}")
-            user_info = api.get_user_info(username)
-        
-        if not username:
-            logger.error("❌ Failed to identify user")
-            return 1
-
-        logger.info(f"👤 Authenticated for: {username}")
-        analyzer = AdvancedProfileAnalyzer(api, username)
-        skills = analyzer.analyze()
-        
-        if not skills:
-            logger.warning("⚠ No skills detected, using placeholder")
-            skills = [{'name': 'Analyzing', 'level': 1, 'repos': 0, 'frameworks': [], 'color': '#888888', 'top_repo': '', 'bytes': 100}]
-
-        contrib_stats = api.get_contribution_stats(username)
-        os.makedirs('assets', exist_ok=True)
-
-        logger.info("🎨 Generating visualizations...")
-        
-        with open('assets/skill-tree.svg', 'w', encoding='utf-8') as f:
-            f.write(SkillTreeGenerator(skills, contrib_stats).generate())
-        
-        with open('assets/language-donut.svg', 'w', encoding='utf-8') as f:
-            f.write(LanguageDonutGenerator(skills).generate())
-        
-        with open('assets/contribution-heatmap.svg', 'w', encoding='utf-8') as f:
-            f.write(ContributionHeatmapGenerator(api, username).generate())
-        
-        with open('assets/stats-card.svg', 'w', encoding='utf-8') as f:
-            f.write(StatsCardGenerator(contrib_stats, user_info).generate())
-
-        logger.info(f"✅ Successfully generated all assets for {username}")
-        return 0
-
-    except Exception as e:
-        logger.error(f"❌ Fatal error: {e}")
-        import traceback
-        traceback.print_exc()
-        return 1
-
+    contrib_stats = api.get_contribution_stats(username)
+    user_info = api.get_user_info(username)
+    os.makedirs('assets', exist_ok=True)
+    
+    with open('assets/skill-tree.svg', 'w', encoding='utf-8') as f:
+        f.write(SkillTreeGenerator(skills, contrib_stats).generate())
+    with open('assets/stats-card.svg', 'w', encoding='utf-8') as f:
+        f.write(StatsCardGenerator(contrib_stats, user_info).generate())
+    with open('assets/language-donut.svg', 'w', encoding='utf-8') as f:
+        f.write(LanguageDonutGenerator(skills).generate())
+    with open('assets/contribution-heatmap.svg', 'w', encoding='utf-8') as f:
+        f.write(ContributionHeatmapGenerator(api, username).generate())
+    
+    logger.info("✅ Generation complete")
+    return 0
 
 if __name__ == "__main__":
     exit(main())
