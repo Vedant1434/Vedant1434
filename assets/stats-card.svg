@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 240">
     <defs>
         <style>
-            @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&amp;display=swap');
             .txt { font-family: 'JetBrains Mono', monospace; fill: #e6edf3; }
             .title { font-size: 16px; font-weight: 600; }
             .stat-value { font-size: 28px; font-weight: 700; fill: #f92672; }
