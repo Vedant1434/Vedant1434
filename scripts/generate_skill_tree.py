@@ -165,7 +165,7 @@ class AdvancedProfileAnalyzer:
         self.skills = defaultdict(lambda: {
             'bytes': 0, 
             'repos': 0, 
-            'recency_sum': 0,  # Fixed: Match the key used in logic
+            'recency_sum': 0,
             'frameworks': defaultdict(int), 
             'top_repo': ('', 0)
         })
@@ -334,12 +334,12 @@ class StatsCardGenerator:
             .stat-value {{ font-size: 28px; font-weight: 700; fill: #f92672; }}
             .stat-label {{ font-size: 12px; fill: #8b949e; }}
         </style>
-        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stop-color="#0d1117"/>
             <stop offset="100%" stop-color="#161b22"/>
         </linearGradient>
     </defs>
-    <rect width="100%" height="100%" fill="url(#bg)" rx="12" stroke="#30363d"/>
+    <rect width="100%" height="100%" fill="url(#bg)" rx="12" stroke="#30363d" stroke-width="2"/>
     <text x="24" y="32" class="txt title">CONTRIBUTION STATS</text>
     <line x1="24" y1="45" x2="{self.width - 24}" y2="45" stroke="#30363d" stroke-width="1"/>
     <g transform="translate(40, 80)">
@@ -378,7 +378,13 @@ class LanguageDonutGenerator:
             .label { font-size: 13px; font-weight: 500; }
             .percent { font-size: 12px; fill: #8b949e; }
         </style>''')
-        svg.append('<rect width="100%" height="100%" fill="#0d1117" rx="12" stroke="#30363d"/>')
+        svg.append('''<defs>
+        <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#0d1117"/>
+            <stop offset="100%" stop-color="#161b22"/>
+        </linearGradient>
+        </defs>''')
+        svg.append('<rect width="100%" height="100%" fill="url(#bg)" rx="12" stroke="#30363d" stroke-width="2"/>')
         svg.append('<text x="30" y="35" class="txt" font-size="18" font-weight="600">LANGUAGE DISTRIBUTION</text>')
         cx, cy, r = 160, 180, 85
         circumference = 2 * math.pi * r
@@ -429,13 +435,19 @@ class ContributionHeatmapGenerator:
                 week_data.append((date, count))
             weeks.append(week_data[::-1])
         weeks = weeks[::-1]
+        
         svg = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.width} {self.height}" width="{self.width}" height="{self.height}">']
         svg.append('<defs><style>')
         svg.append('.txt { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: #e6edf3; font-size: 12px; }')
         svg.append('.title { font-size: 16px; font-weight: 600; }')
-        svg.append('</style></defs>')
-        svg.append('<rect width="100%" height="100%" fill="#0d1117" rx="10"/>')
-        svg.append('<rect width="100%" height="100%" fill="none" stroke="#30363d" stroke-width="2" rx="10"/>')
+        svg.append('</style>')
+        svg.append('<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">')
+        svg.append('<stop offset="0%" stop-color="#0d1117"/>')
+        svg.append('<stop offset="100%" stop-color="#161b22"/>')
+        svg.append('</linearGradient>')
+        svg.append('</defs>')
+        
+        svg.append('<rect width="100%" height="100%" fill="url(#bg)" rx="12" stroke="#30363d" stroke-width="2"/>')
         svg.append('<text x="20" y="30" class="txt title">CONTRIBUTION ACTIVITY</text>')
         x_start, y_start = 20, 50
         cell_size = 12
