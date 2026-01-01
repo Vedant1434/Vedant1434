@@ -79,7 +79,11 @@ class GitHubAPI:
                     if reset:
                         self.rate_limit_reset = int(reset)
                     
-                    data = json.loads(response.read().decode())
+                    try:
+                        data = json.loads(response.read().decode())
+                    except json.JSONDecodeError:
+                        data = {}
+                        
                     self.cache[cache_key] = data
                     return data, response.headers
             except HTTPError as e:
@@ -112,9 +116,10 @@ class GitHubAPI:
                     return None, None
         return None, None
 
-    def get_user_info(self) -> Dict:
-        """Fetch authenticated user info"""
-        data, _ = self._request("user")
+    def get_user_info(self, username: str = None) -> Dict:
+        """Fetch user info. If username provided, fetches specific user, else authenticated user."""
+        endpoint = f"users/{username}" if username else "user"
+        data, _ = self._request(endpoint)
         return data or {}
 
     def get_all_repos(self, username: str, limit: int = 30) -> List[Dict]:
@@ -797,14 +802,26 @@ def main():
     try:
         # Initialize
         api = GitHubAPI(token)
-        user_info = api.get_user_info()
-        username = user_info.get('login')
+        
+        # FIX: Try to get username from environment first (GitHub Actions standard)
+        # This prevents the script from using the bot's username (github-actions[bot])
+        username = os.environ.get('GITHUB_REPOSITORY_OWNER')
         
         if not username:
-            logger.error("❌ Failed to fetch user info")
+            # Fallback for local testing
+            logger.info("ℹ️  GITHUB_REPOSITORY_OWNER not set, falling back to API user")
+            user_info = api.get_user_info()
+            username = user_info.get('login')
+        else:
+            logger.info(f"ℹ️  Using detected username: {username}")
+            # Still fetch user info for stats card
+            user_info = api.get_user_info(username)
+        
+        if not username:
+            logger.error("❌ Failed to identify user")
             return 1
 
-        logger.info(f"👤 Authenticated as: {username}")
+        logger.info(f"👤 Authenticated for: {username}")
 
         # Analyze profile
         analyzer = AdvancedProfileAnalyzer(api, username)
