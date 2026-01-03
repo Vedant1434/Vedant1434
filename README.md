@@ -80,9 +80,6 @@ The skill matrix above analyzes:
 ### Language Distribution
 <img src="./assets/language-donut.svg" alt="Language Distribution" width="580" />
 
-### Activity Heatmap
-<img src="./assets/contribution-heatmap.svg" alt="Contribution Heatmap" width="100%" />
-
 </div>
 
 ---
