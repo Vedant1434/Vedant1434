@@ -251,6 +251,8 @@ class AdvancedProfileAnalyzer:
         return sorted(processed, key=lambda x: (x['level'], x['bytes']), reverse=True)[:10]
 
 
+# --- Visualizers (Using List Append for Safety) ---
+
 class SkillTreeGenerator:
     def __init__(self, skills: List[Dict], contrib_stats: Dict):
         self.skills = skills
@@ -259,43 +261,31 @@ class SkillTreeGenerator:
         self.height = 200 + len(skills) * 95
 
     def generate(self) -> str:
-        # Replaced Google Fonts with System Fonts to prevent XML/loading errors
-        return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.width} {self.height}" width="{self.width}" height="{self.height}">
-    <defs>
-        <style>
-            .txt {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: #e6edf3; }}
-            .title {{ font-size: 32px; font-weight: 700; letter-spacing: 2px; }}
-            .subtitle {{ font-size: 13px; fill: #8b949e; }}
-            .lang {{ font-size: 17px; font-weight: 600; }}
-            .stat {{ font-size: 12px; fill: #8b949e; }}
-            .bar-bg {{ fill: #161b22; stroke: #30363d; stroke-width: 1; rx: 5; }}
-            .glow {{ filter: drop-shadow(0 0 8px rgba(249, 38, 114, 0.6)); }}
-        </style>
-        <linearGradient id="bg-grad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#0d1117"/>
-            <stop offset="100%" stop-color="#161b22"/>
-        </linearGradient>
-        <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stop-color="#f92672"/>
-            <stop offset="100%" stop-color="#a626a4"/>
-        </linearGradient>
-    </defs>
-    
-    <rect width="100%" height="100%" fill="url(#bg-grad)" rx="12"/>
-    <rect width="100%" height="100%" fill="none" stroke="#30363d" stroke-width="2" rx="12"/>
-    
-    <g transform="translate(40, 50)">
-        <text x="0" y="0" class="txt title" fill="url(#accent)">◈ SKILL MATRIX</text>
-        <text x="0" y="28" class="txt subtitle">Real-time GitHub Analytics • {datetime.now().strftime('%B %Y')}</text>
-        <text x="0" y="50" class="txt subtitle">{self.stats.get('commits', 0)} Commits • {self.stats.get('prs', 0)} PRs</text>
-        <line x1="0" y1="70" x2="{self.width - 80}" y2="70" stroke="#30363d" stroke-width="2"/>
-    </g>
-    
-    {self._render_skills()}
-</svg>'''
-
-    def _render_skills(self) -> str:
-        nodes = []
+        svg = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.width} {self.height}" width="{self.width}" height="{self.height}">']
+        svg.append('<defs>')
+        svg.append('<style>')
+        svg.append('.txt { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: #e6edf3; }')
+        svg.append('.title { font-size: 32px; font-weight: 700; letter-spacing: 2px; }')
+        svg.append('.subtitle { font-size: 13px; fill: #8b949e; }')
+        svg.append('.lang { font-size: 17px; font-weight: 600; }')
+        svg.append('.stat { font-size: 12px; fill: #8b949e; }')
+        svg.append('.bar-bg { fill: #161b22; stroke: #30363d; stroke-width: 1; rx: 5; }')
+        svg.append('.glow { filter: drop-shadow(0 0 8px rgba(249, 38, 114, 0.6)); }')
+        svg.append('</style>')
+        svg.append('<linearGradient id="bg-grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0d1117"/><stop offset="100%" stop-color="#161b22"/></linearGradient>')
+        svg.append('<linearGradient id="accent" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#f92672"/><stop offset="100%" stop-color="#a626a4"/></linearGradient>')
+        svg.append('</defs>')
+        
+        svg.append('<rect width="100%" height="100%" fill="url(#bg-grad)" rx="12"/>')
+        svg.append('<rect width="100%" height="100%" fill="none" stroke="#30363d" stroke-width="2" rx="12"/>')
+        
+        svg.append('<g transform="translate(40, 50)">')
+        svg.append('<text x="0" y="0" class="txt title" fill="url(#accent)">◈ SKILL MATRIX</text>')
+        svg.append(f'<text x="0" y="28" class="txt subtitle">Real-time GitHub Analytics • {datetime.now().strftime("%B %Y")}</text>')
+        svg.append(f'<text x="0" y="50" class="txt subtitle">{self.stats.get("commits", 0)} Commits • {self.stats.get("prs", 0)} PRs</text>')
+        svg.append(f'<line x1="0" y1="70" x2="{self.width - 80}" y2="70" stroke="#30363d" stroke-width="2"/>')
+        svg.append('</g>')
+        
         y = 150
         for s in self.skills:
             lvl = s['level']
@@ -305,20 +295,23 @@ class SkillTreeGenerator:
             elif lvl >= 4: tier, clr = "● COMPETENT", "#61afef"
             else: tier, clr = "○ NOVICE", "#8b949e"
             fw = ' • '.join(s['frameworks']) if s['frameworks'] else 'Core'
-            nodes.append(f'''
-    <g transform="translate(40, {y})">
-        <circle cx="18" cy="18" r="8" fill="{s['color']}" class="glow"/>
-        <line x1="18" y1="28" x2="18" y2="70" stroke="#30363d" stroke-dasharray="3,3"/>
-        <text x="45" y="24" class="txt lang" fill="{s['color']}">{s['name']}</text>
-        <text x="820" y="24" class="txt stat" fill="{clr}" text-anchor="end">{tier}</text>
-        <text x="820" y="62" class="txt stat" text-anchor="end">Top: {s['top_repo']}</text>
-        <text x="700" y="24" class="txt stat" text-anchor="end">LVL {lvl}</text>
-        <rect x="45" y="35" width="350" height="8" class="bar-bg"/>
-        <rect x="45" y="35" width="{width}" height="8" fill="{s['color']}" rx="4"/>
-        <text x="45" y="62" class="txt stat" fill="#79c0ff">{fw}</text>
-    </g>''')
+            
+            svg.append(f'<g transform="translate(40, {y})">')
+            svg.append(f'<circle cx="18" cy="18" r="8" fill="{s["color"]}" class="glow"/>')
+            svg.append('<line x1="18" y1="28" x2="18" y2="70" stroke="#30363d" stroke-dasharray="3,3"/>')
+            svg.append(f'<text x="45" y="24" class="txt lang" fill="{s["color"]}">{s["name"]}</text>')
+            svg.append(f'<text x="820" y="24" class="txt stat" fill="{clr}" text-anchor="end">{tier}</text>')
+            svg.append(f'<text x="820" y="62" class="txt stat" text-anchor="end">Top: {s["top_repo"]}</text>')
+            svg.append(f'<text x="700" y="24" class="txt stat" text-anchor="end">LVL {lvl}</text>')
+            svg.append('<rect x="45" y="35" width="350" height="8" class="bar-bg"/>')
+            svg.append(f'<rect x="45" y="35" width="{width}" height="8" fill="{s["color"]}" rx="4"/>')
+            svg.append(f'<text x="45" y="62" class="txt stat" fill="#79c0ff">{fw}</text>')
+            svg.append('</g>')
             y += 95
-        return '\n'.join(nodes)
+            
+        svg.append(f'')
+        svg.append('</svg>')
+        return ''.join(svg)
 
 class StatsCardGenerator:
     def __init__(self, stats: Dict, user: Dict):
@@ -327,43 +320,53 @@ class StatsCardGenerator:
         self.height = 240
 
     def generate(self) -> str:
-        # Added Width/Height attributes to prevent distortion
-        return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.width} {self.height}" width="{self.width}" height="{self.height}">
-    <defs>
-        <style>
-            .txt {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: #e6edf3; }}
-            .title {{ font-size: 16px; font-weight: 600; }}
-            .stat-value {{ font-size: 28px; font-weight: 700; fill: #f92672; }}
-            .stat-label {{ font-size: 12px; fill: #8b949e; }}
-        </style>
-        <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#0d1117"/>
-            <stop offset="100%" stop-color="#161b22"/>
-        </linearGradient>
-    </defs>
-    <rect width="100%" height="100%" fill="url(#bg)" rx="12" stroke="#30363d" stroke-width="2"/>
-    <text x="24" y="32" class="txt title">CONTRIBUTION STATS</text>
-    <line x1="24" y1="45" x2="{self.width - 24}" y2="45" stroke="#30363d" stroke-width="1"/>
-    <g transform="translate(40, 80)">
-        <text y="0" class="txt stat-value">{self.stats.get('commits', 0):,}</text>
-        <text y="20" class="txt stat-label">Total Commits</text>
-    </g>
-    <g transform="translate(240, 80)">
-        <text y="0" class="txt stat-value">{self.stats.get('prs', 0):,}</text>
-        <text y="20" class="txt stat-label">Pull Requests</text>
-    </g>
-    <g transform="translate(40, 140)">
-        <text y="0" class="txt stat-value">{self.stats.get('issues', 0):,}</text>
-        <text y="20" class="txt stat-label">Issues Created</text>
-    </g>
-    <g transform="translate(240, 140)">
-        <text y="0" class="txt stat-value">{self.stats.get('reviews', 0):,}</text>
-        <text y="20" class="txt stat-label">Code Reviews</text>
-    </g>
-    <g transform="translate(40, 200)">
-        <text y="0" class="txt stat-label">📦 {self.user.get('public_repos', 0)} Repos  •  👥 {self.user.get('followers', 0)} Followers</text>
-    </g>
-</svg>'''
+        svg = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.width} {self.height}" width="{self.width}" height="{self.height}">']
+        svg.append('<defs>')
+        svg.append('<style>')
+        svg.append('.txt { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: #e6edf3; }')
+        svg.append('.title { font-size: 16px; font-weight: 600; }')
+        svg.append('.stat-value { font-size: 28px; font-weight: 700; fill: #f92672; }')
+        svg.append('.stat-label { font-size: 12px; fill: #8b949e; }')
+        svg.append('</style>')
+        svg.append('<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0d1117"/><stop offset="100%" stop-color="#161b22"/></linearGradient>')
+        svg.append('</defs>')
+        
+        svg.append('<rect width="100%" height="100%" fill="url(#bg)" rx="12" stroke="#30363d" stroke-width="2"/>')
+        svg.append('<text x="24" y="32" class="txt title">CONTRIBUTION STATS</text>')
+        svg.append(f'<line x1="24" y1="45" x2="{self.width - 24}" y2="45" stroke="#30363d" stroke-width="1"/>')
+        
+        # Commits
+        svg.append('<g transform="translate(40, 80)">')
+        svg.append(f'<text y="0" class="txt stat-value">{self.stats.get("commits", 0):,}</text>')
+        svg.append('<text y="20" class="txt stat-label">Total Commits</text>')
+        svg.append('</g>')
+        
+        # PRs
+        svg.append('<g transform="translate(240, 80)">')
+        svg.append(f'<text y="0" class="txt stat-value">{self.stats.get("prs", 0):,}</text>')
+        svg.append('<text y="20" class="txt stat-label">Pull Requests</text>')
+        svg.append('</g>')
+        
+        # Issues
+        svg.append('<g transform="translate(40, 140)">')
+        svg.append(f'<text y="0" class="txt stat-value">{self.stats.get("issues", 0):,}</text>')
+        svg.append('<text y="20" class="txt stat-label">Issues Created</text>')
+        svg.append('</g>')
+        
+        # Reviews
+        svg.append('<g transform="translate(240, 140)">')
+        svg.append(f'<text y="0" class="txt stat-value">{self.stats.get("reviews", 0):,}</text>')
+        svg.append('<text y="20" class="txt stat-label">Code Reviews</text>')
+        svg.append('</g>')
+        
+        # Footer
+        svg.append('<g transform="translate(40, 200)">')
+        svg.append(f'<text y="0" class="txt stat-label">📦 {self.user.get("public_repos", 0)} Repos  •  👥 {self.user.get("followers", 0)} Followers</text>')
+        svg.append('</g>')
+        
+        svg.append(f'')
+        svg.append('</svg>')
+        return ''.join(svg)
 
 class LanguageDonutGenerator:
     def __init__(self, skills: List[Dict]):
@@ -375,24 +378,23 @@ class LanguageDonutGenerator:
         total = sum(s['bytes'] for s in self.skills)
         if total == 0: return self._empty()
         
-        # Added Width/Height attributes
         svg = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.width} {self.height}" width="{self.width}" height="{self.height}">']
-        svg.append('''<style>
-            .txt { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: #e6edf3; }
-            .label { font-size: 13px; font-weight: 500; }
-            .percent { font-size: 12px; fill: #8b949e; }
-        </style>''')
-        svg.append('''<defs>
-        <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#0d1117"/>
-            <stop offset="100%" stop-color="#161b22"/>
-        </linearGradient>
-        </defs>''')
+        svg.append('<defs>')
+        svg.append('<style>')
+        svg.append('.txt { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: #e6edf3; }')
+        svg.append('.label { font-size: 13px; font-weight: 500; }')
+        svg.append('.percent { font-size: 12px; fill: #8b949e; }')
+        svg.append('</style>')
+        svg.append('<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0d1117"/><stop offset="100%" stop-color="#161b22"/></linearGradient>')
+        svg.append('</defs>')
+        
         svg.append('<rect width="100%" height="100%" fill="url(#bg)" rx="12" stroke="#30363d" stroke-width="2"/>')
         svg.append('<text x="30" y="35" class="txt" font-size="18" font-weight="600">LANGUAGE DISTRIBUTION</text>')
+        
         cx, cy, r = 160, 180, 85
         circumference = 2 * math.pi * r
         offset = 0
+        
         svg.append(f'<g transform="rotate(-90 {cx} {cy})">')
         for s in self.skills:
             pct = s['bytes'] / total
@@ -400,6 +402,7 @@ class LanguageDonutGenerator:
             svg.append(f'<circle r="{r}" cx="{cx}" cy="{cy}" fill="none" stroke="{s["color"]}" stroke-width="30" stroke-dasharray="{dash} {circumference}" stroke-dashoffset="{-offset}"/>')
             offset += dash
         svg.append('</g>')
+        
         lx, ly = 320, 70
         for s in self.skills:
             pct = (s['bytes'] / total) * 100
@@ -407,6 +410,8 @@ class LanguageDonutGenerator:
             svg.append(f'<text x="{lx+15}" y="{ly+4}" class="txt label">{s["name"]}</text>')
             svg.append(f'<text x="{lx+160}" y="{ly+4}" class="txt percent" text-anchor="end">{pct:.1f}%</text>')
             ly += 30
+            
+        svg.append(f'')
         svg.append('</svg>')
         return ''.join(svg)
 
@@ -428,6 +433,7 @@ class ContributionHeatmapGenerator:
                 date = datetime.strptime(event['created_at'][:10], "%Y-%m-%d").date()
                 activity_map[date] += 1
             except: continue
+            
         today = datetime.now().date()
         weeks = []
         for week in range(52):
@@ -440,24 +446,23 @@ class ContributionHeatmapGenerator:
             weeks.append(week_data[::-1])
         weeks = weeks[::-1]
         
-        # Added Width/Height attributes
         svg = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.width} {self.height}" width="{self.width}" height="{self.height}">']
-        svg.append('<defs><style>')
+        svg.append('<defs>')
+        svg.append('<style>')
         svg.append('.txt { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: #e6edf3; font-size: 12px; }')
         svg.append('.title { font-size: 16px; font-weight: 600; }')
         svg.append('</style>')
-        svg.append('<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">')
-        svg.append('<stop offset="0%" stop-color="#0d1117"/>')
-        svg.append('<stop offset="100%" stop-color="#161b22"/>')
-        svg.append('</linearGradient>')
+        svg.append('<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0d1117"/><stop offset="100%" stop-color="#161b22"/></linearGradient>')
         svg.append('</defs>')
         
         svg.append('<rect width="100%" height="100%" fill="url(#bg)" rx="12" stroke="#30363d" stroke-width="2"/>')
         svg.append('<text x="20" y="30" class="txt title">CONTRIBUTION ACTIVITY</text>')
+        
         x_start, y_start = 20, 50
         cell_size = 12
         gap = 3
         max_count = max([max([d[1] for d in week]) for week in weeks]) or 1
+        
         for week_idx, week in enumerate(weeks):
             for day_idx, (date, count) in enumerate(week):
                 x = x_start + week_idx * (cell_size + gap)
@@ -470,6 +475,7 @@ class ContributionHeatmapGenerator:
                     elif intensity < 0.75: color = '#26a641'
                     else: color = '#39d353'
                 svg.append(f'<rect x="{x}" y="{y}" width="{cell_size}" height="{cell_size}" fill="{color}" rx="2"><title>{date}: {count}</title></rect>')
+        
         legend_y = y_start + 8 * (cell_size + gap) + 10
         svg.append(f'<text x="{x_start}" y="{legend_y}" class="txt" fill="#8b949e">Less</text>')
         colors = ['#161b22', '#0e4429', '#006d32', '#26a641', '#39d353']
@@ -477,6 +483,8 @@ class ContributionHeatmapGenerator:
             x = x_start + 45 + i * (cell_size + gap)
             svg.append(f'<rect x="{x}" y="{legend_y - 10}" width="{cell_size}" height="{cell_size}" fill="{color}" rx="2"/>')
         svg.append(f'<text x="{x_start + 45 + len(colors) * (cell_size + gap) + 5}" y="{legend_y}" class="txt" fill="#8b949e">More</text>')
+        
+        svg.append(f'')
         svg.append('</svg>')
         return ''.join(svg)
 
@@ -494,16 +502,40 @@ def main():
 
     contrib_stats = api.get_contribution_stats(username)
     user_info = api.get_user_info(username)
+    
     os.makedirs('assets', exist_ok=True)
     
-    with open('assets/skill-tree.svg', 'w', encoding='utf-8') as f:
-        f.write(SkillTreeGenerator(skills, contrib_stats).generate())
-    with open('assets/stats-card.svg', 'w', encoding='utf-8') as f:
-        f.write(StatsCardGenerator(contrib_stats, user_info).generate())
-    with open('assets/language-donut.svg', 'w', encoding='utf-8') as f:
-        f.write(LanguageDonutGenerator(skills).generate())
-    with open('assets/contribution-heatmap.svg', 'w', encoding='utf-8') as f:
-        f.write(ContributionHeatmapGenerator(api, username).generate())
+    # 1. Skill Tree
+    try:
+        logger.info("🎨 Generating Skill Tree...")
+        with open('assets/skill-tree.svg', 'w', encoding='utf-8') as f:
+            f.write(SkillTreeGenerator(skills, contrib_stats).generate())
+    except Exception as e:
+        logger.error(f"❌ Skill Tree Failed: {e}")
+
+    # 2. Stats Card
+    try:
+        logger.info("📊 Generating Stats Card...")
+        with open('assets/stats-card.svg', 'w', encoding='utf-8') as f:
+            f.write(StatsCardGenerator(contrib_stats, user_info).generate())
+    except Exception as e:
+        logger.error(f"❌ Stats Card Failed: {e}")
+
+    # 3. Language Donut
+    try:
+        logger.info("📈 Generating Language Donut...")
+        with open('assets/language-donut.svg', 'w', encoding='utf-8') as f:
+            f.write(LanguageDonutGenerator(skills).generate())
+    except Exception as e:
+        logger.error(f"❌ Language Donut Failed: {e}")
+
+    # 4. Heatmap
+    try:
+        logger.info("🔥 Generating Heatmap...")
+        with open('assets/contribution-heatmap.svg', 'w', encoding='utf-8') as f:
+            f.write(ContributionHeatmapGenerator(api, username).generate())
+    except Exception as e:
+        logger.error(f"❌ Heatmap Failed: {e}")
     
     logger.info("✅ Generation complete")
     return 0
