@@ -259,6 +259,7 @@ class SkillTreeGenerator:
         self.height = 200 + len(skills) * 95
 
     def generate(self) -> str:
+        # Replaced Google Fonts with System Fonts to prevent XML/loading errors
         return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.width} {self.height}" width="{self.width}" height="{self.height}">
     <defs>
         <style>
@@ -326,6 +327,7 @@ class StatsCardGenerator:
         self.height = 240
 
     def generate(self) -> str:
+        # Added Width/Height attributes to prevent distortion
         return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.width} {self.height}" width="{self.width}" height="{self.height}">
     <defs>
         <style>
@@ -372,6 +374,8 @@ class LanguageDonutGenerator:
     def generate(self) -> str:
         total = sum(s['bytes'] for s in self.skills)
         if total == 0: return self._empty()
+        
+        # Added Width/Height attributes
         svg = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.width} {self.height}" width="{self.width}" height="{self.height}">']
         svg.append('''<style>
             .txt { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: #e6edf3; }
@@ -436,6 +440,7 @@ class ContributionHeatmapGenerator:
             weeks.append(week_data[::-1])
         weeks = weeks[::-1]
         
+        # Added Width/Height attributes
         svg = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.width} {self.height}" width="{self.width}" height="{self.height}">']
         svg.append('<defs><style>')
         svg.append('.txt { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: #e6edf3; font-size: 12px; }')
