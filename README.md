@@ -16,34 +16,45 @@
 
 ```java
 public class VedantSingh {
-    private String role;
-    private String[] focus;
-    private String[] languages;
-    private String[] currentLearning;
-    private String philosophy;
 
-    public VedantSingh() {
-        this.role = "Software Engineer";
-        this.focus = new String[]{"Backend Development", "System Design", "API Architecture"};
-        this.languages = new String[]{"Java", "Python", "JavaScript", "TypeScript"};
-        this.currentLearning = new String[]{"Microservices", "Cloud Architecture", "DevOps"};
-        this.philosophy = "Code with purpose, build with passion";
-    }
+    String identity = "Software Engineer by mindset, not by title";
 
-    public void sayHi() {
-        System.out.println("Thanks for dropping by! Let's build something amazing together 🚀");
+    String[] IBuild = {
+        "Anything that solves a real problem",
+        "Systems, tools, libraries, and experiments",
+        "Projects driven by curiosity, not roles"
+    };
+
+    String[] toolsIUse = {
+        "Java", "Python", "Spring Boot", "Databases",
+        "APIs", "Automation", "Whatever the idea needs"
+    };
+
+    String[] currentlyExploring = {
+        "Microservices",
+        "Docker & Containers",
+        "Cloud & Distributed Systems",
+        "Machine learning and AI"
+    };
+
+    String philosophy =
+        "Ideas come first. Tech follows. Engineering makes it real.";
+
+    void intro() {
+        System.out.println("Hey 👋 I'm Vedant");
+        System.out.println("I build things because I enjoy engineering.");
+        System.out.println("If I can imagine it, I try to implement it.");
     }
 
     public static void main(String[] args) {
-        VedantSingh me = new VedantSingh();
-        me.sayHi();
+        new VedantSingh().intro();
     }
 }
 ---
 ```
 ## 🎮 Dynamic Skill Matrix
 
-> **Real-time analytics** automatically generated from my GitHub activity. Updated daily via GitHub Actions.
+> **Real-time analytics**
 
 <div align="center">
   <img src="./assets/skill-tree.svg" alt="Dynamic Skill Tree" width="100%" />
@@ -75,129 +86,49 @@ The skill matrix above analyzes:
 </div>
 
 ---
-
 ## 🛠️ Tech Stack
 
 <div align="center">
 
-### Core Languages
-![Python](https://img.shields.io/badge/Python-3572A5?style=for-the-badge&logo=python&logoColor=white)
+### 💻 Programming Languages
 ![Java](https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
-
-### Frameworks & Tools
+![Python](https://img.shields.io/badge/Python-3572A5?style=for-the-badge&logo=python&logoColor=white)
+![C](https://img.shields.io/badge/C-00599C?style=for-the-badge&logo=c&logoColor=white)
+![SQL](https://img.shields.io/badge/SQL-003B57?style=for-the-badge&logo=database&logoColor=white)
+### ⚙️ Backend Technologies
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-6DB33F?style=for-the-badge&logo=spring-boot&logoColor=white)
+![Hibernate](https://img.shields.io/badge/Hibernate-59666C?style=for-the-badge&logo=hibernate&logoColor=white)
+![JDBC](https://img.shields.io/badge/JDBC-007396?style=for-the-badge&logo=java&logoColor=white)
+![Flask](https://img.shields.io/badge/Flask-000000?style=for-the-badge&logo=flask&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
-
-### Databases
+![REST API](https://img.shields.io/badge/REST_API-02569B?style=for-the-badge&logo=api&logoColor=white)
+![JWT](https://img.shields.io/badge/JWT-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)
+### 🧩 Frontend Technologies
+![HTML](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)
+![CSS](https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white)
+### 🗄️ Databases & Caching
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
-
-
-### Development Tools
+![SQLite](https://img.shields.io/badge/SQLite-07405E?style=for-the-badge&logo=sqlite&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)
+### 🐳 DevOps & Architecture (Learning & Hands-on)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![Microservices](https://img.shields.io/badge/Microservices-FF6F00?style=for-the-badge&logo=cloud&logoColor=white)
+### 🧪 Testing & Quality
+![JUnit5](https://img.shields.io/badge/JUnit5-25A162?style=for-the-badge&logo=junit5&logoColor=white)
+![Unit Testing](https://img.shields.io/badge/Unit_Testing-4CAF50?style=for-the-badge&logo=checkmarx&logoColor=white)
+### 🧰 Tools & Platforms
 ![Git](https://img.shields.io/badge/Git-F05032?style=for-the-badge&logo=git&logoColor=white)
-![VS Code](https://img.shields.io/badge/VS_Code-007ACC?style=for-the-badge&logo=visual-studio-code&logoColor=white)
-![IntelliJ](https://img.shields.io/badge/IntelliJ_IDEA-000000?style=for-the-badge&logo=intellij-idea&logoColor=white)
+![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)
 ![Postman](https://img.shields.io/badge/Postman-FF6C37?style=for-the-badge&logo=postman&logoColor=white)
+![IntelliJ IDEA](https://img.shields.io/badge/IntelliJ_IDEA-000000?style=for-the-badge&logo=intellij-idea&logoColor=white)
+![VS Code](https://img.shields.io/badge/VS_Code-007ACC?style=for-the-badge&logo=visual-studio-code&logoColor=white)
+### 🧠 Other Skills
+![Web Scraping](https://img.shields.io/badge/Web_Scraping-4CAF50?style=for-the-badge&logo=selenium&logoColor=white)
+![API Integration](https://img.shields.io/badge/API_Integration-FF9800?style=for-the-badge&logo=api&logoColor=white)
+![Multithreading](https://img.shields.io/badge/Multithreading-673AB7?style=for-the-badge&logo=java&logoColor=white)
+![System Design](https://img.shields.io/badge/System_Design-607D8B?style=for-the-badge&logo=diagram&logoColor=white)
 
 </div>
-
----
-
-## 📈 GitHub Stats
-
-<div align="center">
-  <img height="180em" src="https://github-readme-stats.vercel.app/api?username=Vedant1434&show_icons=true&theme=react&hide_border=true&bg_color=0d1117&title_color=f92672&icon_color=f92672&text_color=c9d1d9&count_private=true&include_all_commits=true" alt="GitHub Stats" />
-  <img height="180em" src="https://github-readme-stats.vercel.app/api/top-langs/?username=Vedant1434&layout=compact&theme=react&hide_border=true&bg_color=0d1117&title_color=f92672&text_color=c9d1d9&langs_count=8" alt="Top Languages" />
-</div>
-
-<div align="center">
-  <img src="https://github-readme-streak-stats.herokuapp.com/?user=Vedant1434&theme=react&hide_border=true&background=0d1117&ring=f92672&fire=f92672&currStreakLabel=f92672" alt="GitHub Streak" />
-</div>
-
-<div align="center">
-  <img src="https://github-profile-trophy.vercel.app/?username=Vedant1434&theme=radical&no-frame=true&no-bg=true&row=1&column=7" alt="GitHub Trophies" />
-</div>
-
----
-
-## 🎯 Current Focus
-
-```mermaid
-%%{init: {
-  "theme": "dark",
-  "themeVariables": {
-    "fontSize": "8px",
-    "nodePadding": "1"
-  }
-}}%%
-
-graph LR
-    A((Vedant Singh))
-
-    %% Main categories
-    A --- L[Languages]
-    A --- B[Backend]
-    A --- F[Frontend]
-    A --- D[Databases]
-    A --- T[Tools]
-    A --- O[Other]
-
-    %% Languages
-    L --- L1[Java]
-    L --- L2[Python]
-    L --- L3[C]
-    L --- L4[SQL]
-
-    %% Backend
-    B --- B1[Spring Boot]
-    B --- B2[Flask]
-    B --- B3[JDBC]
-    B --- B4[Hibernate]
-    B --- B5[REST APIs]
-
-    %% Spring sub-tree
-    B1 --- S1[Spring Core]
-    B1 --- S2[Spring Security]
-    S2 --- S3[JWT]
-
-    %% Frontend
-    F --- F1[HTML]
-    F --- F2[CSS]
-
-    %% Databases
-    D --- D1[PostgreSQL]
-    D --- D2[SQLite]
-
-    %% Tools
-    T --- T1[Git]
-    T --- T2[GitHub]
-    T --- T3[Postman]
-    T --- T4[IntelliJ]
-    T --- T5[VS Code]
-
-    %% Other skills
-    O --- O1[Web Scraping]
-    O --- O2[API Integration]
-    O --- O3[Multithreading]
-    O --- O4[JUnit 5]
-
-    %% Styling
-    classDef center fill:#000,color:#fff,stroke:#22c55e,stroke-width:2px;
-    classDef lang fill:#022c22,color:#34d399;
-    classDef back fill:#0f172a,color:#60a5fa;
-    classDef front fill:#1f2933,color:#fbbf24;
-    classDef db fill:#2e1065,color:#c084fc;
-    classDef tool fill:#3f1d0b,color:#facc15;
-    classDef other fill:#111827,color:#93c5fd;
-
-    class A center;
-    class L,L1,L2,L3,L4 lang;
-    class B,B1,B2,B3,B4,B5,S1,S2,S3 back;
-    class F,F1,F2 front;
-    class D,D1,D2 db;
-    class T,T1,T2,T3,T4,T5 tool;
-    class O,O1,O2,O3,O4 other;
-
-```
 
 ---
 
@@ -224,36 +155,7 @@ Feel free to reach out! I'm always open to discussing new projects, creative ide
 - 🏃‍♂️ Staying active and exploring outdoors
 - 🎵 Listening to music while debugging
 - 🧩 Solving algorithmic challenges
-- 🌱 Contributing to open-source projects
-
----
-
-## 📊 Weekly Development Breakdown
-
-<!--START_SECTION:waka-->
-<!--END_SECTION:waka-->
-
----
-
-<div align="center">
-
-### 🔥 Contribution Snake
-
-![Snake animation](https://raw.githubusercontent.com/Vedant1434/Vedant1434/output/github-contribution-grid-snake-dark.svg)
-
----
-
-### ⚡ Profile Power-Ups
-
-This profile features:
-- 🤖 **Automated analytics** via GitHub Actions
-- 🎨 **Custom SVG visualizations** with real-time data
-- 🔍 **Deep repository forensics** for skill detection
-- 📊 **Framework recognition** through file analysis
-- 🚀 **Daily updates** to keep stats fresh
-
-<sub>Powered by a custom Python engine • <a href="./scripts/generate_skill_tree.py">View Source Code</a></sub>
-
+- 🌱 GAMING
 ---
 
 ### 📬 Open to Opportunities
@@ -272,5 +174,5 @@ This profile features:
 ---
 
 <div align="center">
-  <sub>Built with ❤️ by Vedant Singh • Last updated: Auto-generated daily</sub>
+  <sub>Built with ❤️ by Vedant Singh </sub>
 </div>
