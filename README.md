@@ -50,8 +50,8 @@ public class VedantSingh {
         new VedantSingh().intro();
     }
 }
----
 ```
+---
 ## 🎮 Dynamic Skill Matrix
 
 > **Real-time analytics**
